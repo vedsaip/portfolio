@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vedsai Pandla</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green: #00ff41;
+      --green-dim: #00c030;
+      --green-faint: #003a0f;
+      --green-glow: rgba(0, 255, 65, 0.18);
+      --bg: #000000;
+      --card-bg: #050f05;
+      --border: #00ff4130;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--green);
+      font-family: 'Share Tech Mono', monospace;
+      overflow-x: hidden;
+      cursor: crosshair;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.08) 2px,
+        rgba(0, 0, 0, 0.08) 4px
+      );
+    }
+
+    /* Noise texture */
+    body::after {
+      content: '';
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+    }
+
+    /* ─── MATRIX CANVAS ─── */
+    #matrix-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      opacity: 0.07;
+    }
+
+    /* ─── HERO ─── */
+    #hero {
+      position: relative;
+      z-index: 10;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .hero-prefix {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(0.85rem, 2vw, 1rem);
+      color: var(--green-dim);
+      letter-spacing: 0.3em;
+      margin-bottom: 1.2rem;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.3s;
+    }
+
+    .hero-name {
+      font-family: 'VT323', monospace;
+      font-size: clamp(3.5rem, 10vw, 8rem);
+      line-height: 1;
+      letter-spacing: 0.04em;
+      text-shadow:
+        0 0 10px var(--green),
+        0 0 30px var(--green),
+        0 0 60px rgba(0,255,65,0.4);
+      opacity: 0;
+      animation: fadeUp 0.8s ease forwards 0.6s;
+    }
+
+    .hero-name .cursor {
+      display: inline-block;
+      width: 0.06em;
+      height: 0.85em;
+      background: var(--green);
+      vertical-align: middle;
+      margin-left: 4px;
+      animation: blink 0.9s step-end infinite;
+    }
+
+    .hero-tagline {
+      margin-top: 1.5rem;
+      font-size: clamp(0.8rem, 1.8vw, 1rem);
+      color: var(--green-dim);
+      letter-spacing: 0.2em;
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 1s;
+    }
+
+    /* ─── SCROLL ARROW ─── */
+    .scroll-hint {
+      position: absolute;
+      bottom: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 1.4s;
+    }
+
+    .scroll-hint span {
+      font-size: 0.72rem;
+      letter-spacing: 0.25em;
+      color: var(--green-dim);
+    }
+
+    .scroll-arrow {
+      width: 28px;
+      height: 28px;
+      border-right: 2px solid var(--green);
+      border-bottom: 2px solid var(--green);
+      transform: rotate(45deg);
+      animation: bounce 1.6s ease infinite;
+      box-shadow: 3px 3px 8px var(--green-glow);
+    }
+
+    /* ─── SECTIONS ─── */
+    section:not(#hero) {
+      position: relative;
+      z-index: 10;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 7rem 2rem;
+    }
+
+    .section-header {
+      margin-bottom: 3.5rem;
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.4em;
+      color: var(--green-dim);
+      margin-bottom: 0.5rem;
+    }
+
+    .section-title {
+      font-family: 'VT323', monospace;
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      line-height: 1;
+      text-shadow: 0 0 20px rgba(0,255,65,0.35);
+    }
+
+    .section-line {
+      margin-top: 0.8rem;
+      height: 1px;
+      background: linear-gradient(90deg, var(--green), transparent);
+      width: 100%;
+    }
+
+    /* ─── EDUCATION CARDS ─── */
+    .edu-card {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      padding: 1.8rem 2rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .edu-card::before {
+      content: '>';
+      position: absolute;
+      left: -1.5rem;
+      top: 1.8rem;
+      color: var(--green);
+      font-size: 1rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .edu-card:hover {
+      border-color: var(--green-dim);
+      box-shadow: 0 0 20px var(--green-glow), inset 0 0 20px rgba(0,255,65,0.03);
+    }
+
+    .edu-card:hover::before {
+      opacity: 1;
+    }
+
+    .edu-degree {
+      font-size: 1.05rem;
+      margin-bottom: 0.4rem;
+      letter-spacing: 0.05em;
+    }
+
+    .edu-school {
+      font-size: 0.85rem;
+      color: var(--green-dim);
+      margin-bottom: 0.6rem;
+      letter-spacing: 0.1em;
+    }
+
+    .edu-meta {
+      font-size: 0.75rem;
+      color: #006620;
+      letter-spacing: 0.15em;
+    }
+
+    /* ─── EXPERIENCE CARDS ─── */
+    .exp-card {
+      border-left: 2px solid var(--green-dim);
+      padding: 0 0 2.5rem 2rem;
+      position: relative;
+    }
+
+    .exp-card::before {
+      content: '';
+      position: absolute;
+      left: -5px;
+      top: 6px;
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    .exp-card:last-child {
+      padding-bottom: 0;
+      border-color: transparent;
+    }
+
+    .exp-role {
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.3rem;
+    }
+
+    .exp-company {
+      font-size: 0.82rem;
+      color: var(--green);
+      letter-spacing: 0.15em;
+      margin-bottom: 0.25rem;
+    }
+
+    .exp-date {
+      font-size: 0.72rem;
+      color: #005518;
+      letter-spacing: 0.2em;
+      margin-bottom: 0.8rem;
+    }
+
+    .exp-desc {
+      font-size: 0.82rem;
+      color: var(--green-dim);
+      line-height: 1.75;
+    }
+
+    /* ─── PROJECT CARDS ─── */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .proj-card {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      padding: 1.6rem 1.8rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+    }
+
+    .proj-card::after {
+      content: '';
+      position: absolute;
+      bottom: -40px;
+      right: -40px;
+      width: 100px;
+      height: 100px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      transition: transform 0.4s;
+    }
+
+    .proj-card:hover {
+      border-color: var(--green);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px var(--green-glow);
+    }
+
+    .proj-card:hover::after {
+      transform: scale(3);
+    }
+
+    .proj-number {
+      font-size: 0.7rem;
+      color: #004010;
+      letter-spacing: 0.3em;
+      margin-bottom: 0.8rem;
+    }
+
+    .proj-name {
+      font-family: 'VT323', monospace;
+      font-size: 1.8rem;
+      margin-bottom: 0.6rem;
+      letter-spacing: 0.05em;
+      line-height: 1;
+    }
+
+    .proj-desc {
+      font-size: 0.8rem;
+      color: var(--green-dim);
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+
+    .proj-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .tag {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      border: 1px solid #003a15;
+      color: #00a030;
+      padding: 0.15rem 0.5rem;
+    }
+
+    /* ─── PROJECT ACCOMPLISHMENTS ─── */
+    .proj-accomplishments {
+      margin-top: 1.2rem;
+      border-left: 1px solid #003a15;
+      padding-left: 1rem;
+    }
+
+    .proj-acc-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: #005020;
+      margin-bottom: 0.6rem;
+    }
+
+    .proj-acc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .acc-item {
+      font-size: 0.75rem;
+      color: var(--green-dim);
+      letter-spacing: 0.05em;
+    }
+
+    /* ─── FEATURED PROJECT ─── */
+    .proj-featured {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      padding: 2.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .proj-featured:hover {
+      border-color: var(--green-dim);
+      box-shadow: 0 0 40px var(--green-glow);
+    }
+
+    .proj-featured-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.4em;
+      color: #004a18;
+      margin-bottom: 1.5rem;
+    }
+
+    .proj-featured-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: start;
+    }
+
+    @media (max-width: 650px) {
+      .proj-featured-body { grid-template-columns: 1fr; gap: 2rem; }
+    }
+
+    .proj-featured-name {
+      font-family: 'VT323', monospace;
+      font-size: clamp(3rem, 6vw, 5rem);
+      line-height: 0.95;
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 20px rgba(0,255,65,0.4);
+      margin-bottom: 1.2rem;
+    }
+
+    .proj-featured-desc {
+      font-size: 0.82rem;
+      color: var(--green-dim);
+      line-height: 1.8;
+    }
+
+    .proj-links {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .proj-link {
+      font-size: 0.75rem;
+      color: var(--green);
+      text-decoration: none;
+      letter-spacing: 0.15em;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s, text-shadow 0.2s;
+    }
+
+    .proj-link:hover {
+      border-color: var(--green);
+      text-shadow: 0 0 8px var(--green);
+    }
+
+    /* Terminal widget */
+    .proj-featured-terminal {
+      border: 1px solid #003a15;
+      background: #010a01;
+      font-size: 0.78rem;
+      line-height: 1.8;
+    }
+
+    .terminal-bar {
+      background: #021202;
+      padding: 0.5rem 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      border-bottom: 1px solid #003a15;
+    }
+
+    .t-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #003a15;
+    }
+
+    .t-title {
+      font-size: 0.68rem;
+      color: #005520;
+      letter-spacing: 0.15em;
+      margin-left: 0.5rem;
+    }
+
+    .terminal-body {
+      padding: 1rem 1.2rem;
+      color: var(--green-dim);
+    }
+
+    .t-comment { color: #004a18; }
+    .t-cmd     { color: var(--green); }
+    .t-out     { color: #009928; }
+    .t-blink   { animation: blink 0.9s step-end infinite; }
+
+    /* ─── SKILLS ─── */
+    .skills-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+    }
+
+    @media (max-width: 620px) {
+      .skills-grid { grid-template-columns: 1fr; }
+    }
+
+    .skill-group:first-child {
+      grid-column: 1 / -1;
+    }
+
+    .skill-group-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.4em;
+      color: #005520;
+      margin-bottom: 1.2rem;
+    }
+
+    .skill-bars { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .skill-row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.78rem;
+      color: var(--green-dim);
+    }
+
+    .bar {
+      height: 4px;
+      background: #002010;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green-dim), var(--green));
+      box-shadow: 0 0 6px var(--green);
+      width: 0;
+      transition: width 1.2s ease;
+    }
+
+    .reveal.visible .bar-fill {
+      /* width is already set inline — CSS transition handles it */
+    }
+
+    .skill-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .chip {
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      border: 1px solid #003a15;
+      color: #00a030;
+      padding: 0.25rem 0.65rem;
+      transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
+    }
+
+    .chip:hover {
+      border-color: var(--green);
+      color: var(--green);
+      box-shadow: 0 0 8px var(--green-glow);
+    }
+
+    /* ─── CONTACT ─── */
+    .contact-block {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      padding: 2.5rem;
+    }
+
+    .contact-intro {
+      font-size: 0.82rem;
+      color: #005520;
+      letter-spacing: 0.1em;
+      margin-bottom: 2rem;
+    }
+
+    .contact-links {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      text-decoration: none;
+      color: var(--green-dim);
+      font-size: 0.85rem;
+      transition: color 0.2s;
+    }
+
+    .contact-item:hover {
+      color: var(--green);
+    }
+
+    .contact-item:hover .contact-value {
+      text-shadow: 0 0 8px var(--green);
+    }
+
+    .contact-icon {
+      font-size: 1.1rem;
+      color: var(--green);
+      width: 1.5rem;
+      text-align: center;
+    }
+
+    .contact-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.3em;
+      color: #005520;
+      width: 80px;
+    }
+
+    .contact-value {
+      letter-spacing: 0.05em;
+      transition: text-shadow 0.2s;
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 3rem 2rem;
+      font-size: 0.72rem;
+      color: #003a10;
+      letter-spacing: 0.3em;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: rotate(45deg) translateY(0); }
+      50%       { transform: rotate(45deg) translateY(6px); }
+    }
+
+    /* ─── SCROLL REVEAL ─── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+      will-change: opacity, transform;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ─── GLITCH on hover for title ─── */
+    .section-title:hover {
+      animation: glitch 0.25s linear;
+    }
+
+    @keyframes glitch {
+      0%   { text-shadow: 0 0 20px rgba(0,255,65,0.35); clip-path: none; }
+      20%  { text-shadow: -2px 0 red, 2px 0 cyan; clip-path: polygon(0 20%, 100% 20%, 100% 40%, 0 40%); transform: skewX(-4deg); }
+      40%  { text-shadow: 2px 0 red, -2px 0 cyan; clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%); transform: skewX(3deg); }
+      60%  { text-shadow: -2px 0 red, 2px 0 cyan; clip-path: none; }
+      80%  { text-shadow: 0 0 20px rgba(0,255,65,0.5); transform: skewX(0); }
+      100% { text-shadow: 0 0 20px rgba(0,255,65,0.35); clip-path: none; }
+    }
+
+    /* Divider */
+    .section-divider {
+      position: relative;
+      z-index: 10;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    .section-divider hr {
+      border: none;
+      border-top: 1px dashed #002010;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="matrix-canvas"></canvas>
+
+  <!-- ─── HERO ─── -->
+  <section id="hero">
+    <p class="hero-prefix">// initializing...</p>
+    <h1 class="hero-name">
+      VEDSAI PANDLA<span class="cursor"></span>
+    </h1>
+    <p class="hero-tagline">[ CS STUDENT &nbsp;·&nbsp; DEVELOPER &nbsp;·&nbsp; PROBLEM SOLVER ]</p>
+    <div class="scroll-hint">
+      <span>LET ME TELL YOU ABOUT MYSELF</span>
+      <div class="scroll-arrow"></div>
+    </div>
+  </section>
+
+  <!-- ─── EDUCATION ─── -->
+  <section id="education">
+    <div class="section-header reveal">
+      <p class="section-label">// 01 &mdash; EDUCATION</p>
+      <h2 class="section-title">EDUCATION</h2>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="edu-card reveal">
+      <p class="edu-degree">B.Sc. Computer Science &mdash; Cybersecurity Specialization</p>
+      <p class="edu-school">Queen's University &nbsp;|&nbsp; Kingston, Ontario</p>
+      <p class="edu-meta">2022 &mdash; 2026 &nbsp;&nbsp;·&nbsp;&nbsp; GPA: 3.4 / 4.3</p>
+    </div>
+
+    <div class="edu-card reveal" style="transition-delay:0.1s">
+      <p class="edu-degree">Relevant Coursework</p>
+      <p class="edu-school" style="margin-top:0.6rem">Network Security &nbsp;·&nbsp; Applied Cryptography &nbsp;·&nbsp; Operating Systems
+        &nbsp;·&nbsp; Data Structures & Algorithms &nbsp;·&nbsp; Database Systems &nbsp;·&nbsp; Software Engineering</p>
+    </div>
+  </section>
+
+  <div class="section-divider"><hr /></div>
+
+  <!-- ─── PROJECTS ─── -->
+  <section id="projects">
+    <div class="section-header reveal">
+      <p class="section-label">// 02 &mdash; PROJECTS</p>
+      <h2 class="section-title">PROJECTS</h2>
+      <div class="section-line"></div>
+    </div>
+
+    <!-- FEATURED: Crypto Lab 1 -->
+    <div class="proj-featured reveal">
+      <div class="proj-featured-label">FEATURED_PROJECT &nbsp;·&nbsp; CRYPTOGRAPHY &amp; SYSTEMS SECURITY</div>
+      <div class="proj-featured-body">
+        <div class="proj-featured-text">
+          <h3 class="proj-featured-name">CRYPTO<br/>LAB I</h3>
+          <p class="proj-featured-desc">
+            Conducted deep cryptographic security analysis on random number generation vulnerabilities,
+            encryption key security, and classical cipher cryptanalysis inside a Linux environment.
+            Built a C program that exploits weak PRNG time-based seeding to brute-force AES-128-CBC
+            encryption keys — enumerating 7,200+ timestamp candidates to crack ciphertext.
+            Implemented secure 256-bit key generation via <code>/dev/urandom</code> and used
+            eBPF/BCC to trace kernel entropy sources at the hardware level.
+            Broke a reused one-time pad through XOR cryptanalysis without any key knowledge,
+            leveraging ASCII structure and English language frequency patterns.
+          </p>
+          <div class="proj-accomplishments">
+            <p class="proj-acc-label">// key_exploits</p>
+            <div class="proj-acc-list">
+              <span class="acc-item">&#9632; Brute-force AES-128-CBC via weak PRNG</span>
+              <span class="acc-item">&#9632; OTP break via XOR + crib-dragging</span>
+              <span class="acc-item">&#9632; Kernel entropy tracing with eBPF</span>
+              <span class="acc-item">&#9632; CSPRNG key gen via /dev/urandom</span>
+              <span class="acc-item">&#9632; OpenSSL EVP API with CBC + IV</span>
+            </div>
+          </div>
+          <div class="proj-tags" style="margin-top:1.2rem">
+            <span class="tag">C</span>
+            <span class="tag">PYTHON</span>
+            <span class="tag">OPENSSL</span>
+            <span class="tag">AES-128-CBC</span>
+            <span class="tag">BPF/eBPF</span>
+            <span class="tag">LINUX KERNEL</span>
+            <span class="tag">CSPRNG</span>
+            <span class="tag">SHA</span>
+          </div>
+          <div class="proj-links">
+            <a href="LAB_REPORT_1.pdf" class="proj-link" target="_blank">[ LAB_REPORT.PDF ]</a>
+            <a href="#" class="proj-link">[ VIEW_SOURCE ]</a>
+          </div>
+        </div>
+        <div class="proj-featured-terminal">
+          <div class="terminal-bar">
+            <span class="t-dot"></span><span class="t-dot"></span><span class="t-dot"></span>
+            <span class="t-title">brute_force_aes.c</span>
+          </div>
+          <div class="terminal-body">
+            <span class="t-comment"># brute-forcing AES key via PRNG seed</span><br/>
+            <span class="t-cmd">$ ./crack_aes ciphertext.bin</span><br/><br/>
+            <span class="t-out">&#9654; Scanning 7,200 timestamp seeds...</span><br/>
+            <span class="t-out">&#9654; Trying seed 1704067200...</span><br/>
+            <span class="t-out">&#9654; Trying seed 1704067842...</span><br/>
+            <span class="t-out" style="color:var(--green)">&#9654; KEY FOUND: seed=1704070317</span><br/>
+            <span class="t-out" style="color:var(--green)">&#9654; Plaintext recovered ✓</span><br/><br/>
+            <span class="t-comment"># entropy pool check</span><br/>
+            <span class="t-cmd">$ cat /proc/sys/kernel/random/entropy_avail</span><br/>
+            <span class="t-out">3842</span><br/>
+            <span class="t-cmd">$ _<span class="t-blink">|</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURED: Crypto Lab 2 — RSA -->
+    <div class="proj-featured reveal" style="margin-top:2rem">
+      <div class="proj-featured-label">FEATURED_PROJECT &nbsp;·&nbsp; PUBLIC-KEY CRYPTOGRAPHY</div>
+      <div class="proj-featured-body">
+        <div class="proj-featured-text">
+          <h3 class="proj-featured-name">CRYPTO<br/>LAB II</h3>
+          <p class="proj-featured-desc">
+            Implemented the full RSA cryptosystem from scratch in C using OpenSSL's BIGNUM library
+            for arbitrary-precision arithmetic. Built key generation from prime factors using the
+            Extended Euclidean Algorithm, modular exponentiation for encrypt/decrypt, and a complete
+            digital signature system demonstrating authentication and non-repudiation.
+            Conducted integer factorization attacks on RSA moduli from 163 to 304 bits using
+            trial division, Pollard's Rho, yafu, and msieve — successfully recovering private keys
+            from undersized keys and demonstrating why 2048-bit minimums matter.
+          </p>
+          <div class="proj-accomplishments">
+            <p class="proj-acc-label">// key_exploits</p>
+            <div class="proj-acc-list">
+              <span class="acc-item">&#9632; RSA from scratch with BIGNUM API</span>
+              <span class="acc-item">&#9632; Private key recovery via factorization</span>
+              <span class="acc-item">&#9632; Pollard's Rho + yafu + msieve attacks</span>
+              <span class="acc-item">&#9632; Digital signature gen &amp; verification</span>
+              <span class="acc-item">&#9632; Avalanche effect analysis</span>
+            </div>
+          </div>
+          <div class="proj-tags" style="margin-top:1.2rem">
+            <span class="tag">C</span>
+            <span class="tag">OPENSSL</span>
+            <span class="tag">BIGNUM API</span>
+            <span class="tag">PYTHON</span>
+            <span class="tag">RSA</span>
+            <span class="tag">NUMBER THEORY</span>
+            <span class="tag">LINUX</span>
+          </div>
+          <div class="proj-links">
+            <a href="LAB_REPORT_2.pdf" class="proj-link" target="_blank">[ LAB_REPORT.PDF ]</a>
+            <a href="#" class="proj-link">[ VIEW_SOURCE ]</a>
+          </div>
+        </div>
+        <div class="proj-featured-terminal">
+          <div class="terminal-bar">
+            <span class="t-dot"></span><span class="t-dot"></span><span class="t-dot"></span>
+            <span class="t-title">rsa_attack.py</span>
+          </div>
+          <div class="terminal-body">
+            <span class="t-comment"># factoring 256-bit RSA modulus</span><br/>
+            <span class="t-cmd">$ python3 rsa_attack.py --bits 256</span><br/><br/>
+            <span class="t-out">&#9654; Running Pollard's Rho...</span><br/>
+            <span class="t-out">&#9654; p = 0xC8F4A3D1...</span><br/>
+            <span class="t-out">&#9654; q = 0xE2B19F7A...</span><br/>
+            <span class="t-out" style="color:var(--green)">&#9654; φ(n) computed ✓</span><br/>
+            <span class="t-out" style="color:var(--green)">&#9654; d × e ≡ 1 (mod φ(n)) ✓</span><br/>
+            <span class="t-out" style="color:var(--green)">&#9654; Private key recovered ✓</span><br/>
+            <span class="t-cmd">$ _<span class="t-blink">|</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURED: Crypto Lab 3 — MD5 Hash Collisions -->
+    <div class="proj-featured reveal" style="margin-top:2rem">
+      <div class="proj-featured-label">FEATURED_PROJECT &nbsp;·&nbsp; HASH SECURITY &amp; COLLISION ATTACKS</div>
+      <div class="proj-featured-body">
+        <div class="proj-featured-text">
+          <h3 class="proj-featured-name">CRYPTO<br/>LAB III</h3>
+          <p class="proj-featured-desc">
+            Conducted hands-on MD5 hash collision research in a Linux environment, generating
+            real collisions using <code>md5collgen</code> and analyzing the resulting binary
+            differences with hex editors. Demonstrated that two distinct files can produce
+            identical MD5 digests — breaking the fundamental assumption of hash uniqueness.
+            Explored practical exploitation scenarios where collision vulnerabilities can be
+            leveraged to bypass integrity checks, forge certificates, or subvert digital
+            signature verification in real-world systems.
+          </p>
+          <div class="proj-accomplishments">
+            <p class="proj-acc-label">// key_exploits</p>
+            <div class="proj-acc-list">
+              <span class="acc-item">&#9632; MD5 collision generation via md5collgen</span>
+              <span class="acc-item">&#9632; Binary diff analysis with hex editors</span>
+              <span class="acc-item">&#9632; Hash integrity bypass demonstration</span>
+              <span class="acc-item">&#9632; Signature forgery attack scenarios</span>
+              <span class="acc-item">&#9632; Collision prefix &amp; chosen-prefix attacks</span>
+            </div>
+          </div>
+          <div class="proj-tags" style="margin-top:1.2rem">
+            <span class="tag">C</span>
+            <span class="tag">PYTHON</span>
+            <span class="tag">OPENSSL</span>
+            <span class="tag">MD5</span>
+            <span class="tag">SHA</span>
+            <span class="tag">LINUX</span>
+            <span class="tag">HEX EDITOR</span>
+            <span class="tag">md5collgen</span>
+          </div>
+          <div class="proj-links">
+            <a href="LAB_REPORT_3.pdf" class="proj-link" target="_blank">[ LAB_REPORT.PDF ]</a>
+            <a href="#" class="proj-link">[ VIEW_SOURCE ]</a>
+          </div>
+        </div>
+        <div class="proj-featured-terminal">
+          <div class="terminal-bar">
+            <span class="t-dot"></span><span class="t-dot"></span><span class="t-dot"></span>
+            <span class="t-title">md5_collision.sh</span>
+          </div>
+          <div class="terminal-body">
+            <span class="t-comment"># generate MD5 collision pair</span><br/>
+            <span class="t-cmd">$ md5collgen -p prefix.txt -o f1.bin f2.bin</span><br/><br/>
+            <span class="t-out">&#9654; Generating collision...</span><br/>
+            <span class="t-out">&#9654; f1.bin written (192 bytes)</span><br/>
+            <span class="t-out">&#9654; f2.bin written (192 bytes)</span><br/><br/>
+            <span class="t-cmd">$ md5sum f1.bin f2.bin</span><br/>
+            <span class="t-out" style="color:var(--green)">d41d8cd98f00b204e980  f1.bin</span><br/>
+            <span class="t-out" style="color:var(--green)">d41d8cd98f00b204e980  f2.bin</span><br/>
+            <span class="t-out" style="color:var(--green)">&#9654; COLLISION CONFIRMED ✓</span><br/>
+            <span class="t-cmd">$ _<span class="t-blink">|</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supporting cards grid -->
+    <div class="projects-grid" style="margin-top:2rem">
+
+      <div class="proj-card reveal">
+        <p class="proj-number">PROJECT_04</p>
+        <h3 class="proj-name">POLYMARKET<br/>FEED</h3>
+        <p class="proj-desc">Real-time prediction market data feed app delivering live odds,
+          market charts, and push notifications. Built as a workaround for Canadian users who
+          can't access Polymarket directly — pulling from the public API into a clean mobile UI.</p>
+        <div class="proj-tags">
+          <span class="tag">REACT NATIVE</span>
+          <span class="tag">TYPESCRIPT</span>
+          <span class="tag">REST API</span>
+        </div>
+        <div class="proj-links" style="margin-top:1rem">
+          <a href="#" class="proj-link">[ VIEW_SOURCE ]</a>
+        </div>
+      </div>
+
+      <div class="proj-card reveal" style="transition-delay:0.1s">
+        <p class="proj-number">PROJECT_05</p>
+        <h3 class="proj-name">GAME<br/>FINDER</h3>
+        <p class="proj-desc">App that helps users discover games based on preferences, platform,
+          genre, and play style. Queries external gaming APIs to surface personalized recommendations
+          with filtering, ratings, and quick-look summaries.</p>
+        <div class="proj-tags">
+          <span class="tag">[ STACK ]</span>
+          <span class="tag">API</span>
+        </div>
+        <div class="proj-links" style="margin-top:1rem">
+          <a href="#" class="proj-link">[ VIEW_SOURCE ]</a>
+        </div>
+      </div>
+
+      <div class="proj-card reveal" style="transition-delay:0.2s">
+        <p class="proj-number">PROJECT_06</p>
+        <h3 class="proj-name">LIBRARY<br/>MANAGER</h3>
+        <p class="proj-desc">Full-stack library management system with user auth, book inventory
+          tracking, and an admin dashboard. Containerized end-to-end with Docker for
+          single-command deployment and role-based access control.</p>
+        <div class="proj-tags">
+          <span class="tag">PYTHON</span>
+          <span class="tag">FLASK</span>
+          <span class="tag">DOCKER</span>
+          <span class="tag">SQL</span>
+        </div>
+        <div class="proj-links" style="margin-top:1rem">
+          <a href="#" class="proj-link">[ VIEW_SOURCE ]</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="section-divider"><hr /></div>
+
+  <!-- ─── EXPERIENCE ─── -->
+  <section id="experience">
+    <div class="section-header reveal">
+      <p class="section-label">// 03 &mdash; EXPERIENCE</p>
+      <h2 class="section-title">EXPERIENCE</h2>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="exp-card reveal">
+      <p class="exp-role">Backend Developer</p>
+      <p class="exp-company">Queen's Web Development Club</p>
+      <p class="exp-date">SEP 2023 &mdash; PRESENT</p>
+      <p class="exp-desc">Built and maintained RESTful APIs and data pipelines for club projects.
+        Collaborated with a cross-functional team to ship production features on schedule.
+        Introduced CI/CD workflows using GitHub Actions, reducing deploy time by ~40%.</p>
+    </div>
+
+    <div class="exp-card reveal" style="transition-delay:0.12s">
+      <p class="exp-role">[ Club Role / Executive Position ]</p>
+      <p class="exp-company">[ Club or Student Organization ]</p>
+      <p class="exp-date">MONTH YEAR &mdash; MONTH YEAR</p>
+      <p class="exp-desc">Describe what you did in this role — events organized, members led,
+        projects delivered, or skills you picked up. Replace this with your real experience.</p>
+    </div>
+
+    <div class="exp-card reveal" style="transition-delay:0.24s">
+      <p class="exp-role">[ Another Club Role ]</p>
+      <p class="exp-company">[ Organization Name ]</p>
+      <p class="exp-date">MONTH YEAR &mdash; MONTH YEAR</p>
+      <p class="exp-desc">Another extracurricular or student team. Competition teams, hackathon
+        clubs, volunteer work — anything that shows initiative and teamwork.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"><hr /></div>
+
+  <!-- ─── SKILLS ─── -->
+  <section id="skills">
+    <div class="section-header reveal">
+      <p class="section-label">// 04 &mdash; SKILLS</p>
+      <h2 class="section-title">SKILLS</h2>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="skills-grid reveal">
+      <div class="skill-group">
+        <p class="skill-group-label">LANGUAGES</p>
+        <div class="skill-bars">
+          <div class="skill-row"><span>Python</span><div class="bar"><div class="bar-fill" style="width:90%"></div></div></div>
+          <div class="skill-row"><span>TypeScript</span><div class="bar"><div class="bar-fill" style="width:80%"></div></div></div>
+          <div class="skill-row"><span>JavaScript</span><div class="bar"><div class="bar-fill" style="width:80%"></div></div></div>
+          <div class="skill-row"><span>C / C++</span><div class="bar"><div class="bar-fill" style="width:65%"></div></div></div>
+          <div class="skill-row"><span>SQL</span><div class="bar"><div class="bar-fill" style="width:70%"></div></div></div>
+          <div class="skill-row"><span>Bash</span><div class="bar"><div class="bar-fill" style="width:60%"></div></div></div>
+        </div>
+      </div>
+
+      <div class="skill-group">
+        <p class="skill-group-label">FRAMEWORKS &amp; TOOLS</p>
+        <div class="skill-chips">
+          <span class="chip">Flask</span>
+          <span class="chip">React Native</span>
+          <span class="chip">Docker</span>
+          <span class="chip">Git / GitHub</span>
+          <span class="chip">GitHub Actions</span>
+          <span class="chip">Linux</span>
+          <span class="chip">Wireshark</span>
+          <span class="chip">Burp Suite</span>
+          <span class="chip">Nmap</span>
+          <span class="chip">REST APIs</span>
+          <span class="chip">OpenAI API</span>
+          <span class="chip">scikit-learn</span>
+        </div>
+      </div>
+
+      <div class="skill-group">
+        <p class="skill-group-label">DOMAINS</p>
+        <div class="skill-chips">
+          <span class="chip">Cybersecurity</span>
+          <span class="chip">Network Security</span>
+          <span class="chip">Penetration Testing</span>
+          <span class="chip">Backend Dev</span>
+          <span class="chip">Data Pipelines</span>
+          <span class="chip">Mobile Dev</span>
+          <span class="chip">CI/CD</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"><hr /></div>
+
+  <!-- ─── CONTACT ─── -->
+  <section id="contact">
+    <div class="section-header reveal">
+      <p class="section-label">// 05 &mdash; CONTACT</p>
+      <h2 class="section-title">CONTACT</h2>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="contact-block reveal">
+      <p class="contact-intro">// available for opportunities, collaborations, and interesting problems.</p>
+      <div class="contact-links">
+        <a href="/cdn-cgi/l/email-protection#e294878691838ba2879a838f928e87cc818d8f" class="contact-item">
+          <span class="contact-icon">&#9993;</span>
+          <span class="contact-label">EMAIL</span>
+          <span class="contact-value"><span class="__cf_email__" data-cfemail="6b1d0e0f180a022b0e130a061b070e45080406">[email&#160;protected]</span></span>
+        </a>
+        <a href="https://github.com/" target="_blank" class="contact-item">
+          <span class="contact-icon">&#9670;</span>
+          <span class="contact-label">GITHUB</span>
+          <span class="contact-value">github.com/vedsaipandla</span>
+        </a>
+        <a href="https://linkedin.com/" target="_blank" class="contact-item">
+          <span class="contact-icon">&#9671;</span>
+          <span class="contact-label">LINKEDIN</span>
+          <span class="contact-value">linkedin.com/in/vedsaipandla</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── FOOTER ─── -->
+  <footer>
+    <p>&copy; 2026 VEDSAI PANDLA &nbsp;·&nbsp; ALL RIGHTS RESERVED &nbsp;·&nbsp; BUILD v1.0.0</p>
+  </footer>
+
+  <!-- ─── SCRIPTS ─── -->
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+    // ── Matrix rain ──
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx = canvas.getContext('2d');
+    let W, H, cols, drops;
+
+    function initMatrix() {
+      W = canvas.width  = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+      const fontSize = 14;
+      cols = Math.floor(W / fontSize);
+      drops = Array(cols).fill(1);
+    }
+
+    function drawMatrix() {
+      ctx.fillStyle = 'rgba(0,0,0,0.05)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#00ff41';
+      ctx.font = '14px "Share Tech Mono"';
+      const chars = 'アイウエオカキクケコサシスセソタチツテト0123456789ABCDEF{}[]<>/\\|@#$%^&*';
+      drops.forEach((y, i) => {
+        const ch = chars[Math.floor(Math.random() * chars.length)];
+        ctx.fillText(ch, i * 14, y * 14);
+        if (y * 14 > H && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      });
+    }
+
+    initMatrix();
+    window.addEventListener('resize', initMatrix);
+    setInterval(drawMatrix, 50);
+
+    // ── Skill bars — start at 0 width ──
+    document.querySelectorAll('.bar-fill').forEach(b => {
+      b._targetWidth = b.style.width;
+      b.style.width = '0';
+    });
+
+    // ── Scroll reveal ──
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          // Animate skill bars inside this revealed element
+          e.target.querySelectorAll('.bar-fill').forEach(b => {
+            setTimeout(() => { b.style.width = b._targetWidth; }, 200);
+          });
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.05, rootMargin: '0px 0px -60px 0px' });
+
+    reveals.forEach(el => observer.observe(el));
+
+    // ── Typing effect on hero name ──
+    const nameEl = document.querySelector('.hero-name');
+    const fullText = 'VEDSAI PANDLA';
+    let typed = '';
+    let i = 0;
+
+    function typeWriter() {
+      if (i < fullText.length) {
+        typed += fullText[i];
+        nameEl.innerHTML = typed + '<span class="cursor"></span>';
+        i++;
+        setTimeout(typeWriter, 80);
+      }
+    }
+
+    // Start typing after fade-in delay
+    setTimeout(typeWriter, 700);
+  </script>
+</body>
+</html>
